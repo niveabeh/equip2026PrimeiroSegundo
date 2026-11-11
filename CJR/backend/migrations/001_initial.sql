@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY);
+CREATE TABLE users (id text PRIMARY KEY, name text NOT NULL, email text UNIQUE NOT NULL, password_hash text NOT NULL, role text NOT NULL CHECK(role IN ('admin','coordinator','collaborator')), active boolean NOT NULL DEFAULT true);
+CREATE TABLE editions (id text PRIMARY KEY, name text NOT NULL, year integer NOT NULL, event_date date NOT NULL, location text NOT NULL, status text NOT NULL CHECK(status IN ('planning','active','archived')), summary text NOT NULL DEFAULT '');
+CREATE TABLE memberships (edition_id text REFERENCES editions(id), user_id text REFERENCES users(id), PRIMARY KEY(edition_id,user_id));
+CREATE TABLE activities (id text PRIMARY KEY, edition_id text NOT NULL REFERENCES editions(id), title text NOT NULL, description text NOT NULL DEFAULT '', owner_id text NOT NULL REFERENCES users(id), due_date date NOT NULL, status text NOT NULL CHECK(status IN ('pending','doing','done')), priority text NOT NULL CHECK(priority IN ('normal','high')), version integer NOT NULL DEFAULT 1);
+CREATE TABLE decisions (id text PRIMARY KEY, edition_id text NOT NULL REFERENCES editions(id), activity_id text REFERENCES activities(id), title text NOT NULL, rationale text NOT NULL, author_id text NOT NULL REFERENCES users(id), created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE stakeholders (id text PRIMARY KEY, edition_id text NOT NULL REFERENCES editions(id), name text NOT NULL, category text NOT NULL, responsibility text NOT NULL, contact text NOT NULL DEFAULT '');
+CREATE TABLE audit (id bigserial PRIMARY KEY, edition_id text REFERENCES editions(id), actor_id text NOT NULL REFERENCES users(id), action text NOT NULL, entity_type text NOT NULL, entity_id text NOT NULL, before_data jsonb, after_data jsonb, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX activity_edition ON activities(edition_id);
+CREATE INDEX audit_edition ON audit(edition_id,created_at);
+CREATE OR REPLACE FUNCTION protect_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Audit is append only'; END; $$;
+CREATE TRIGGER audit_immutable BEFORE UPDATE OR DELETE ON audit FOR EACH ROW EXECUTE FUNCTION protect_audit();
+INSERT INTO schema_migrations VALUES(1);

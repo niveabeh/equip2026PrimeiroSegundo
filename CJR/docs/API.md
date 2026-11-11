@@ -1,0 +1,45 @@
+# API REST
+
+Base `/api`. JSON. Enviar `Authorization: Bearer <token>` exceto em login e health. Não existe cadastro público. Erros: `{error: string, details?: object}`. 400 validação; 401 sessão; 403 permissão; 404 inexistente; 409 conflito/arquivamento/duplicidade; 429 limite de tentativas.
+
+| Método e caminho                  | Acesso / operação                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| GET /health                       | Verifica conexão com banco, sem dados administrativos                                |
+| POST /auth/login                  | `{email,password}` → `{token,user}`                                                  |
+| GET /me                           | Identidade ativa atual                                                               |
+| GET /editions                     | Edições visíveis ao perfil                                                           |
+| POST /editions                    | Admin: `{name,year,event_date,location,summary}`                                     |
+| PATCH /editions/:id               | Admin: `{status: planning\|active\|archived}`; edição não arquivada                  |
+| GET /editions/:id/members         | Usuários ativos que podem ser responsáveis                                           |
+| PUT /editions/:id/members/:userId | Admin: vincular usuário ativo; corpo `{}`                                            |
+| GET /editions/:id/activities      | Lista de atividades e nome do responsável                                            |
+| POST /editions/:id/activities     | Admin/coordenação: criar atividade                                                   |
+| PATCH /activities/:id             | Admin/coordenação: campos + version; colaborador próprio: somente `{status,version}` |
+| GET /editions/:id/decisions       | Decisões, autoria e atividade relacionada                                            |
+| POST /editions/:id/decisions      | Admin/coordenação: `{title,rationale,activity_id: string\|null}`                     |
+| GET /editions/:id/stakeholders    | Consulta de envolvidos                                                               |
+| POST /editions/:id/stakeholders   | Admin/coordenação: `{name,category,responsibility,contact}`                          |
+| GET /editions/:id/audit           | Últimos 200 registros da edição, mais recentes primeiro                              |
+| GET /users                        | Admin: contas sem senha/hash                                                         |
+| POST /users                       | Admin: `{name,email,password,role}`; senha mínima de 12 caracteres                   |
+| PATCH /users/:id                  | Admin: `{role,active}`; não permite autoalteração                                    |
+| GET /admin/audit                  | Admin: últimos 200 registros globais                                                 |
+
+Todos os caminhos com edição exigem acesso a ela. Coordenador e colaborador precisam de vínculo. Edição arquivada bloqueia gravações até para administração. Perfis: `admin`, `coordinator`, `collaborator`.
+
+Exemplo de atividade (datas civis YYYY-MM-DD):
+
+```json
+{
+  "title": "Conferir infraestrutura",
+  "description": "Verificar os pontos de apoio",
+  "owner_id": "u-colab",
+  "due_date": "2027-04-10",
+  "status": "pending",
+  "priority": "high"
+}
+```
+
+Situações: `pending`, `doing`, `done`; prioridades: `normal`, `high`. Para atualização por coordenação, envie todos esses campos e a versão atual `version`. O servidor retorna a versão incrementada. Versão desatualizada retorna 409. Categorias de envolvidos: Fornecedor, Parceiro, Voluntário, Apoiador, Outro. Decisões só aceitam atividade da mesma edição. Inclusões retornam HTTP 201.
+
+Não há rotas DELETE. Nenhum endpoint aceita autor ou instante de auditoria informados pelo cliente. Não há API de competições nem API pública de histórico.

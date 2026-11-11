@@ -1,0 +1,22 @@
+{
+  "name": "cjr",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "start": "npm run build && npm start -w backend",
+    "build": "npm run build -w frontend && npm run build -w backend",
+    "test": "npm test -w backend && npm test -w frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.10.0"
+  },
+  "engines": {
+    "node": ">=22.15"
+  }
+}

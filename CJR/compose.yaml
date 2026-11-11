@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: evento
+      POSTGRES_USER: evento
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-local-only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U evento -d evento']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    ports:
+      - '127.0.0.1:3001:3001'
+    environment:
+      DATABASE_URL: postgres://evento:${POSTGRES_PASSWORD:-demo-local-only}@db:5432/evento
+      JWT_SECRET: ${JWT_SECRET:-demo-secret-for-local-hackathon-only-change-before-deploy}
+      SEED_DEMO: 'true'
+      FRONTEND_ORIGIN: http://localhost:3001
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:
