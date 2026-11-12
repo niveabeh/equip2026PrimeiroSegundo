@@ -1,5 +1,7 @@
 # Roteiro de pitch — 3 a 4 minutos
 
+**Foco da revisão v2:** abrir a Trilha de Auditoria como principal diferencial. Começar pela frase “A equipe muda. A memória fica.”, selecionar uma atualização fictícia, mostrar autoria e comparação em português, abrir o contexto no kanban e voltar ao histórico. Mostrar que cenários sintéticos são identificados como demonstração. Em seguida, apresentar patrocinadores: apoio combinado, relacionamento e andamento por edição. Não afirmar que esta revisão foi testada; foram compilados os arquivos, sem execução de testes conforme solicitado.
+
 1. **Problema (30s):** informações operacionais dispersas fazem a organização depender de quem esteve na edição anterior. Prioridade escolhida: preservar responsabilidades e o contexto das decisões.
 2. **Público e recorte (20s):** administração, coordenação e colaboradores. Sistema administrativo da Prefeitura de Joinville e organização do CJR; não gerencia competição nem publica portal público. Dados demonstrados são fictícios.
 3. **Fluxo principal (90s):** painel da edição → nova atividade com responsável → decisão com justificativa → auditoria antes/depois → consulta à edição arquivada. Mostrar que os números do painel vêm dos registros salvos.

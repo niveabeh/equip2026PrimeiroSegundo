@@ -4,6 +4,8 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, migrate, seed } from './db.js';
 import { createApp } from './app.js';
+import { seedExtended } from './seed-extended.js';
+import { seedOperational } from './seed-operational.js';
 if (
   process.env.NODE_ENV === 'production' &&
   (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)
@@ -11,7 +13,11 @@ if (
   throw new Error('Configure JWT_SECRET com pelo menos 32 caracteres.');
 const db = await openDatabase();
 await migrate(db);
-if (process.env.NODE_ENV !== 'production' || process.env.SEED_DEMO === 'true') await seed(db);
+if (process.env.NODE_ENV !== 'production' || process.env.SEED_DEMO === 'true') {
+  await seed(db);
+  await seedExtended(db);
+  await seedOperational(db);
+}
 const app = createApp(db, process.env.JWT_SECRET || randomBytes(48).toString('hex'));
 if (process.env.NODE_ENV !== 'production')
   console.log('Modo demo: dados fictícios. Senha de teste: Demo@2026!');

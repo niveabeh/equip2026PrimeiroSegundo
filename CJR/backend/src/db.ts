@@ -48,8 +48,17 @@ export async function openDatabase(memory = false): Promise<Database> {
 }
 export async function migrate(db: Database) {
   await db.query('CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY)');
-  if (!(await db.query('SELECT version FROM schema_migrations WHERE version=1')).rows.length) {
-    const sql = await readFile(new URL('../migrations/001_initial.sql', import.meta.url), 'utf8');
+  for (const [version, filename] of [
+    [1, '001_initial.sql'],
+    [2, '002_sponsorships_and_context.sql'],
+    [3, '003_operational_responsibilities.sql'],
+  ] as const) {
+    if (
+      (await db.query('SELECT version FROM schema_migrations WHERE version=$1', [version])).rows
+        .length
+    )
+      continue;
+    const sql = await readFile(new URL('../migrations/' + filename, import.meta.url), 'utf8');
     await db.transaction(async (tx) => {
       // SQL is static, split only outside function body.
       const statements = sql.split(/;(?=(?:[^$]*\$\$[^$]*\$\$)*[^$]*$)/).filter((s) => s.trim());
@@ -151,14 +160,14 @@ export async function seed(db: Database) {
     ];
     for (const t of tasks)
       await tx.query(
-        'INSERT INTO activities(id,edition_id,title,description,owner_id,due_date,status,priority) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
-        t,
+        'INSERT INTO activities(id,edition_id,title,description,owner_id,due_date,status,priority,phase) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+        [...t, t[0] === 'a-5' ? 'after' : 'before'],
       );
     await tx.query(
       "INSERT INTO decisions(id,edition_id,activity_id,title,rationale,author_id) VALUES('d-1','e-2027','a-1','Realizar visita técnica antes da montagem','A visita antecipa necessidades de energia e circulação. Proposta fictícia para demonstração.','u-coord'),('d-2','e-2026','a-5','Manter checklist de passagem entre equipes','Reduzir a dependência de conhecimento individual na próxima edição.','u-coord')",
     );
     await tx.query(
-      "INSERT INTO stakeholders VALUES('s-1','e-2027','Coletivo Exemplo','Voluntário','Acolhimento e orientação','contato@example.test'),('s-2','e-2027','Estruturas Fictícias','Fornecedor','Apoio à montagem e infraestrutura','apoio@example.test'),('s-3','e-2026','Rede Demonstração','Parceiro','Apoio administrativo','rede@example.test')",
+      "INSERT INTO stakeholders(id,edition_id,name,category,responsibility,contact) VALUES('s-1','e-2027','Coletivo Exemplo','Voluntário','Acolhimento e orientação','contato@example.test'),('s-2','e-2027','Estruturas Fictícias','Fornecedor','Apoio à montagem e infraestrutura','apoio@example.test'),('s-3','e-2026','Rede Demonstração','Parceiro','Apoio administrativo','rede@example.test')",
     );
     await tx.query(
       "INSERT INTO audit(edition_id,actor_id,action,entity_type,entity_id,after_data) VALUES('e-2027','u-admin','seed','edition','e-2027',$1)",

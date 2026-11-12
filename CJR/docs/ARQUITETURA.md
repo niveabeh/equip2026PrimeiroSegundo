@@ -1,5 +1,28 @@
 # Arquitetura e decisões
 
+## Adições da v3
+
+A migração 003 acrescenta acompanhamento operacional a stakeholders e o vínculo opcional activities.stakeholder_id. A entidade continua representando a participação em uma edição, não a organização inteira. O seed operacional é idempotente pelo marcador 3 em demo_seed_versions. Categorias compartilham um fluxo, com seis abas, para não multiplicar telas sem comportamento consistente.
+
+A feature reading controla exclusivamente a preferência local de texto maior (16/18 px de base). A tipografia usa rem, tamanhos auxiliares a partir de 14 px e controles principais de pelo menos 44 px. A paginação considera a área disponível e a escala do texto. Em alturas menores e com zoom, áreas podem rolar para não cortar conteúdo; não há redução de texto como solução de densidade.
+
+Um envolvido pode originar uma atividade com referência persistida, sujeita a FK e validação da mesma edição. O usuário revisa os campos e define o prazo antes de salvar. Alterações de responsabilidades são protegidas por versão otimista e auditadas. Arquivamento e RBAC continuam no backend. Veja COBERTURA-E-UX-V3.md para a matriz do briefing e as lacunas de discovery.
+
+## Adições da v2
+
+- A migração `002_sponsorships_and_context.sql` adiciona `activities.phase`, `audit.source`, `sponsors` e `demo_seed_versions`.
+- `sponsors` se relaciona com edição e usuário responsável, possui versão otimista e gera auditoria de inclusão/alteração na mesma transação. A pessoa responsável precisa estar ativa e vinculada à edição, ou ser administradora.
+- `seed-extended.ts` acrescenta cenários fictícios uma vez, preservando a base existente. As transições sintéticas são marcadas `source=demo`, enquanto eventos da API usam o padrão `source=application`.
+- A camada shared fornece Modal, Pagination, RoboticsMark e paginação pelo espaço real do contêiner com ResizeObserver. O documento principal fica em 100dvh; os registros usam paginação, sem rolagem da página. Janelas de edição permitem rolagem interna para textos longos e telas pequenas.
+- A auditoria transforma campos técnicos em nomes administrativos na camada entities/audit. Referências resolvidas incluem nomes de responsáveis e títulos de atividades. O registro bruto permanece acessível em uma janela separada.
+
+```mermaid
+erDiagram
+  EDITIONS ||--o{ SPONSORS : relaciona
+  USERS ||--o{ SPONSORS : acompanha
+  EDITIONS ||--o{ AUDIT : preserva
+```
+
 Problema priorizado: perda de contexto e responsabilidades quando informações administrativas ficam dispersas e a equipe muda. Público: administração institucional, coordenação de edição e colaboradores operacionais. Hipótese: registros centralizados, autoria e consulta histórica reduzem dependência de pessoas específicas. O MVP demonstra o fluxo; não mede impacto real nem presume validação institucional.
 
 ```mermaid

@@ -1,26 +1,11 @@
-# Validação da entrega
+# Entrega v3 — compilação e alcance da revisão
 
-Verificado em 11/11/2026, Windows, Node.js 22.15 e npm 10.9.2.
+Preparada em 12/11/2026. **Não foram executados testes automatizados, testes de integração, testes de banco, testes manuais de interface ou testes com usuários, mantendo a orientação anterior do usuário.** Os testes existentes no repositório foram preservados e não executados. Resultados anteriores não validam esta revisão.
 
-## Automatizada
+Foram compilados os arquivos TypeScript do backend, os componentes Vue/TypeScript e o bundle Vite para gerar os arquivos de distribuição. Compilação não demonstra o funcionamento em execução das migrações, do seed, das permissões nem do layout. Não houve nova sessão de navegador, auditoria WCAG, uso de leitor de tela ou validação com pessoas de 45 anos ou mais.
 
-- `npm run build`: aprovado. Verificação TypeScript do frontend e backend e geração do bundle Vite.
-- `npm test`: **9 testes aprovados** — 7 testes de integração da API com PostgreSQL PGlite e 2 testes de regras de datas no frontend.
-- Migração e seed executados duas vezes no teste para verificar idempotência.
-- Testes cobrem autenticação, ocultação de hashes, RBAC, vínculo por edição, restrição de colaborador, validação de data, consultas parametrizadas, invalidação de acesso por desativação, conflito de versão, preservação de antes/depois e bloqueio de UPDATE/DELETE na auditoria.
-- O fluxo de integração cria edição, vincula coordenação, cria atividade, decisão e envolvido, arquiva e consulta os registros históricos. Associação de decisão a atividade de outra edição é rejeitada.
-- Um trigger de falha controlada na auditoria prova que a atualização da atividade é revertida na mesma transação. A linha `API error { code: 'P0001' }` nesse teste é esperada.
+A análise de cobertura foi feita pela leitura dos documentos fornecidos e pela correspondência dos recursos implementados com os aspectos do briefing. Veja COBERTURA-E-UX-V3.md para os limites e lacunas de discovery.
 
-## Interface e execução local
+A migração 003 e o seed operacional serão aplicados na primeira execução desta versão, conforme a configuração de demonstração. Para atualizar uma instalação local, pare o backend antigo, substitua os arquivos, mantenha backend/data se desejar preservar o histórico e execute novamente a partir da raiz. Não execute dois processos PGlite sobre o mesmo diretório.
 
-- Servidor Express iniciado e frontend compilado servido em localhost:3001, com banco persistido em backend/data.
-- Login administrativo validado no navegador, com leitura real do painel, envolvidos e navegação.
-- Marca **CJR**, símbolo de robô, título da página, contexto do evento e identificação de dados fictícios conferidos na versão renderizada.
-- Painel conferido em viewport desktop e em 390 × 844: menu recolhível, cabeçalho, seletor de edição, resumo e cartões em disposição móvel.
-- Formulários usam rótulos, validação nativa e validação de servidor. Foco visível e navegação por teclado implementados; menu móvel fechado usa inert para não receber foco fora da tela.
-
-## Limites da verificação
-
-Docker Compose incluído, mas **não executado ponta a ponta**: o executável Docker está instalado e o serviço/daemon não estava ativo. PostgreSQL externo via driver pg não foi validado em execução neste ambiente. A validação automatizada do SQL foi feita no motor PostgreSQL PGlite.
-
-Não foram realizadas auditoria formal WCAG, teste com leitor de tela, teste de carga, pentest, implantação pública nem validação institucional. Testes do frontend são de regras de data; a revisão da interface foi manual, não uma suíte E2E automatizada. O comando de desenvolvimento combina scripts dos dois workspaces; o modo observado no navegador foi o servidor com frontend compilado.
+A v3 prioriza legibilidade: paginação e menor densidade, com rolagem controlada quando a altura, o zoom ou o tamanho maior do texto exigirem. Essa escolha evita informações cortadas e não comprova conformidade formal de acessibilidade.

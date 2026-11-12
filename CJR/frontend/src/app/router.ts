@@ -5,6 +5,11 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/patrocinadores',
+      component: () => import('../pages/SponsorsPage.vue'),
+      meta: { title: 'Patrocinadores' },
+    },
+    {
       path: '/login',
       component: () => import('../pages/LoginPage.vue'),
       meta: { title: 'Entrar' },

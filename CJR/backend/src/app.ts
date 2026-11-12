@@ -240,6 +240,8 @@ export function createApp(db: Database, secret: string) {
     due_date: date,
     status: z.enum(['pending', 'doing', 'done']),
     priority: z.enum(['normal', 'high']),
+    phase: z.enum(['before', 'during', 'after']).default('before'),
+    stakeholder_id: z.string().max(100).nullable().default(null),
   });
   app.post('/api/editions/:id/activities', async (req, res) => {
     manage(req);
@@ -249,9 +251,10 @@ export function createApp(db: Database, secret: string) {
       await db.transaction(async (tx) => {
         await edition(req, String(req.params.id), true, tx);
         await checkOwner(tx, String(req.params.id), b.owner_id);
+        await checkStakeholder(tx, String(req.params.id), b.stakeholder_id);
         const a = (
           await tx.query(
-            'INSERT INTO activities(id,edition_id,title,description,owner_id,due_date,status,priority) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+            'INSERT INTO activities(id,edition_id,title,description,owner_id,due_date,status,priority,phase,stakeholder_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
             [
               id,
               req.params.id,
@@ -261,6 +264,8 @@ export function createApp(db: Database, secret: string) {
               b.due_date,
               b.status,
               b.priority,
+              b.phase,
+              b.stakeholder_id,
             ],
           )
         ).rows[0];
@@ -295,11 +300,22 @@ export function createApp(db: Database, secret: string) {
         } else {
           b = activitySchema.parse(req.body);
           await checkOwner(tx, before.edition_id, b.owner_id);
+          await checkStakeholder(tx, before.edition_id, b.stakeholder_id);
         }
         const a = (
           await tx.query(
-            'UPDATE activities SET title=$1,description=$2,owner_id=$3,due_date=$4,status=$5,priority=$6,version=version+1 WHERE id=$7 RETURNING *',
-            [b.title, b.description, b.owner_id, b.due_date, b.status, b.priority, before.id],
+            'UPDATE activities SET title=$1,description=$2,owner_id=$3,due_date=$4,status=$5,priority=$6,phase=$7,stakeholder_id=$8,version=version+1 WHERE id=$9 RETURNING *',
+            [
+              b.title,
+              b.description,
+              b.owner_id,
+              b.due_date,
+              b.status,
+              b.priority,
+              b.phase,
+              b.stakeholder_id,
+              before.id,
+            ],
           )
         ).rows[0];
         await audit(tx, req, before.edition_id, 'update', 'activity', before.id, before, a);
@@ -356,38 +372,181 @@ export function createApp(db: Database, secret: string) {
     await edition(req, String(req.params.id));
     res.json(
       (
-        await db.query('SELECT * FROM stakeholders WHERE edition_id=$1 ORDER BY name', [
-          req.params.id,
-        ])
+        await db.query(
+          'SELECT s.*,u.name AS owner_name FROM stakeholders s LEFT JOIN users u ON u.id=s.owner_id WHERE edition_id=$1 ORDER BY s.name',
+          [req.params.id],
+        )
       ).rows,
     );
   });
+  const stakeholderSchema = z.object({
+    name: text,
+    category: z.enum([
+      'Fornecedor',
+      'Parceiro',
+      'Voluntário',
+      'Apoiador',
+      'Empresa contratada',
+      'Outro',
+    ]),
+    responsibility: z.string().trim().min(3).max(1000),
+    contact: z.string().trim().max(200),
+    owner_id: z.string().max(100).nullable().default(null),
+    phase: z.enum(['before', 'during', 'after']).default('before'),
+    operational_status: z
+      .enum(['scheduled', 'confirmed', 'in_progress', 'finished'])
+      .default('scheduled'),
+    notes: z.string().trim().max(2000).default(''),
+  });
   app.post('/api/editions/:id/stakeholders', async (req, res) => {
     manage(req);
-    const b = z
-      .object({
-        name: text,
-        category: z.enum(['Fornecedor', 'Parceiro', 'Voluntário', 'Apoiador', 'Outro']),
-        responsibility: text,
-        contact: z.string().trim().max(200),
-      })
-      .parse(req.body);
+    const b = stakeholderSchema.parse(req.body);
     const id = randomUUID();
     res.status(201).json(
       await db.transaction(async (tx) => {
         await edition(req, String(req.params.id), true, tx);
+        if (b.owner_id) await checkOwner(tx, String(req.params.id), b.owner_id);
         const s = (
-          await tx.query('INSERT INTO stakeholders VALUES($1,$2,$3,$4,$5,$6) RETURNING *', [
-            id,
-            req.params.id,
-            b.name,
-            b.category,
-            b.responsibility,
-            b.contact,
-          ])
+          await tx.query(
+            'INSERT INTO stakeholders(id,edition_id,name,category,responsibility,contact,owner_id,phase,operational_status,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+            [
+              id,
+              req.params.id,
+              b.name,
+              b.category,
+              b.responsibility,
+              b.contact,
+              b.owner_id,
+              b.phase,
+              b.operational_status,
+              b.notes,
+            ],
+          )
         ).rows[0];
         await audit(tx, req, String(req.params.id), 'create', 'stakeholder', id, null, s);
         return s;
+      }),
+    );
+  });
+  app.patch('/api/stakeholders/:id', async (req, res) => {
+    manage(req);
+    const b = stakeholderSchema.extend({ version: z.number().int().positive() }).parse(req.body);
+    res.json(
+      await db.transaction(async (tx) => {
+        const before = (
+          await tx.query('SELECT * FROM stakeholders WHERE id=$1 FOR UPDATE', [req.params.id])
+        ).rows[0];
+        if (!before) throw new HttpError(404, 'Envolvido não encontrado.');
+        await edition(req, before.edition_id, true, tx);
+        if (before.version !== b.version)
+          throw new HttpError(
+            409,
+            'Esta responsabilidade foi alterada por outra pessoa. Recarregue antes de salvar.',
+          );
+        if (b.owner_id) await checkOwner(tx, before.edition_id, b.owner_id);
+        const row = (
+          await tx.query(
+            'UPDATE stakeholders SET name=$1,category=$2,responsibility=$3,contact=$4,owner_id=$5,phase=$6,operational_status=$7,notes=$8,version=version+1 WHERE id=$9 RETURNING *',
+            [
+              b.name,
+              b.category,
+              b.responsibility,
+              b.contact,
+              b.owner_id,
+              b.phase,
+              b.operational_status,
+              b.notes,
+              before.id,
+            ],
+          )
+        ).rows[0];
+        await audit(tx, req, before.edition_id, 'update', 'stakeholder', before.id, before, row);
+        return row;
+      }),
+    );
+  });
+  const sponsorSchema = z.object({
+    name: text,
+    contribution: z.string().trim().min(3).max(2000),
+    counterpart: z.string().trim().max(2000),
+    contact: z.string().trim().max(200),
+    owner_id: z.string().max(100),
+    status: z.enum(['prospect', 'contacted', 'confirmed', 'delivered']),
+    notes: z.string().trim().max(3000),
+  });
+  app.get('/api/editions/:id/sponsors', async (req, res) => {
+    await edition(req, String(req.params.id));
+    res.json(
+      (
+        await db.query(
+          'SELECT s.*,u.name AS owner_name FROM sponsors s JOIN users u ON u.id=s.owner_id WHERE s.edition_id=$1 ORDER BY s.name',
+          [req.params.id],
+        )
+      ).rows,
+    );
+  });
+  app.post('/api/editions/:id/sponsors', async (req, res) => {
+    manage(req);
+    const b = sponsorSchema.parse(req.body),
+      id = randomUUID();
+    res.status(201).json(
+      await db.transaction(async (tx) => {
+        await edition(req, String(req.params.id), true, tx);
+        await checkOwner(tx, String(req.params.id), b.owner_id);
+        const row = (
+          await tx.query(
+            'INSERT INTO sponsors(id,edition_id,name,contribution,counterpart,contact,owner_id,status,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+            [
+              id,
+              req.params.id,
+              b.name,
+              b.contribution,
+              b.counterpart,
+              b.contact,
+              b.owner_id,
+              b.status,
+              b.notes,
+            ],
+          )
+        ).rows[0];
+        await audit(tx, req, String(req.params.id), 'create', 'sponsor', id, null, row);
+        return row;
+      }),
+    );
+  });
+  app.patch('/api/sponsors/:id', async (req, res) => {
+    manage(req);
+    const b = sponsorSchema.extend({ version: z.number().int().positive() }).parse(req.body);
+    res.json(
+      await db.transaction(async (tx) => {
+        const before = (
+          await tx.query('SELECT * FROM sponsors WHERE id=$1 FOR UPDATE', [req.params.id])
+        ).rows[0];
+        if (!before) throw new HttpError(404, 'Patrocinador não encontrado.');
+        await edition(req, before.edition_id, true, tx);
+        if (before.version !== b.version)
+          throw new HttpError(
+            409,
+            'A relação de patrocínio foi alterada. Recarregue antes de salvar.',
+          );
+        await checkOwner(tx, before.edition_id, b.owner_id);
+        const row = (
+          await tx.query(
+            'UPDATE sponsors SET name=$1,contribution=$2,counterpart=$3,contact=$4,owner_id=$5,status=$6,notes=$7,version=version+1 WHERE id=$8 RETURNING *',
+            [
+              b.name,
+              b.contribution,
+              b.counterpart,
+              b.contact,
+              b.owner_id,
+              b.status,
+              b.notes,
+              before.id,
+            ],
+          )
+        ).rows[0];
+        await audit(tx, req, before.edition_id, 'update', 'sponsor', before.id, before, row);
+        return row;
       }),
     );
   });
@@ -396,7 +555,7 @@ export function createApp(db: Database, secret: string) {
     res.json(
       (
         await db.query(
-          'SELECT a.*,u.name AS actor_name FROM audit a JOIN users u ON u.id=a.actor_id WHERE a.edition_id=$1 ORDER BY a.id DESC LIMIT 200',
+          'SELECT a.*,u.name AS actor_name FROM audit a JOIN users u ON u.id=a.actor_id WHERE a.edition_id=$1 ORDER BY a.created_at DESC,a.id DESC LIMIT 200',
           [req.params.id],
         )
       ).rows,
@@ -497,4 +656,12 @@ async function checkOwner(tx: Queryable, editionId: string, userId: string) {
     ).rows.length
   )
     throw new HttpError(400, 'Responsável precisa estar ativo e vinculado à edição.');
+}
+async function checkStakeholder(tx: Queryable, editionId: string, id: string | null) {
+  if (
+    id &&
+    !(await tx.query('SELECT id FROM stakeholders WHERE id=$1 AND edition_id=$2', [id, editionId]))
+      .rows.length
+  )
+    throw new HttpError(400, 'O envolvido precisa pertencer à mesma edição da atividade.');
 }

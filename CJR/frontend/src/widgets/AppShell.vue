@@ -12,10 +12,14 @@ import {
   Menu,
   Bot,
   ChevronRight,
+  GitBranch,
+  Handshake,
+  Type,
 } from 'lucide-vue-next';
 import { user, logout, isAdmin } from '../features/auth/model';
 import { editions, selectedId, selectEdition } from '../entities/edition';
 import { labels } from '../shared/format';
+import { largeText, toggleTextSize } from '../features/reading/model';
 const router = useRouter(),
   open = ref(false);
 const mobileMedia = window.matchMedia('(max-width: 720px)');
@@ -40,10 +44,11 @@ function closeMenu() {
 }
 const links = [
   { to: '/', label: 'Painel da edição', icon: LayoutDashboard },
+  { to: '/auditoria', label: 'Trilha de auditoria', icon: GitBranch },
   { to: '/atividades', label: 'Atividades e decisões', icon: ListChecks },
+  { to: '/patrocinadores', label: 'Patrocinadores', icon: Handshake },
   { to: '/historico', label: 'Histórico de edições', icon: History },
-  { to: '/envolvidos', label: 'Envolvidos', icon: Users },
-  { to: '/auditoria', label: 'Trilha de auditoria', icon: ScrollText },
+  { to: '/envolvidos', label: 'Envolvidos na operação', icon: Users },
 ];
 function exit() {
   logout();
@@ -64,7 +69,7 @@ function exit() {
         ><span class="brand-icon"><Bot :size="25" /></span
         ><span>CJR<span class="brand-sub">GESTÃO • ROBÓTICA</span></span></RouterLink
       >
-      <div class="workspace-tag"><span class="live-dot" />Ambiente de demonstração</div>
+      <div class="workspace-tag"><span class="live-dot" />Dados de demonstração</div>
       <p class="nav-caption">ORGANIZAÇÃO</p>
       <nav aria-label="Navegação principal">
         <RouterLink v-for="link in links" :key="link.to" :to="link.to" @click="open = false"
@@ -73,12 +78,15 @@ function exit() {
           ><ShieldCheck :size="19" />Usuários e permissões</RouterLink
         >
       </nav>
+      <RouterLink to="/auditoria" class="sidebar-promo" @click="open = false"
+        ><GitBranch :size="20" /><span
+          ><small>Memória do evento</small><strong>Quem mudou e por quê.</strong
+          ><em>Consultar a trilha de auditoria</em></span
+        ></RouterLink
+      >
       <div class="sidebar-bottom">
-        <p>Campeonato Joinvilense<br />de Robótica</p>
-        <small
-          >Protótipo acadêmico do CJR.<br />Destinado à Prefeitura de Joinville e à organização do
-          evento.</small
-        >
+        <p>Prefeitura de Joinville<br />Campeonato Joinvilense de Robótica</p>
+        <small>Protótipo acadêmico · dados fictícios</small>
       </div>
     </aside>
     <div class="workspace">
@@ -94,8 +102,12 @@ function exit() {
         ><span class="breadcrumb"
           >Organização <ChevronRight :size="14" /> <strong>Área administrativa</strong></span
         >
+        <button class="reading-toggle" :aria-pressed="largeText" @click="toggleTextSize">
+          <Type :size="20" aria-hidden="true" />Texto maior
+        </button>
         <div class="user-menu">
-          <span class="avatar">{{ user?.name.charAt(0) }}</span><span class="user-info"
+          <span class="avatar" :title="user?.name">{{ user?.name.charAt(0) }}</span><span
+            class="user-info"
             ><strong>{{ user?.name }}</strong
             ><small>{{ labels[user?.role || ''] }}</small></span
           ><button class="icon-button" aria-label="Sair da conta" @click="exit">

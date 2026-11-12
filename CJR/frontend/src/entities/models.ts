@@ -26,6 +26,8 @@ export interface Activity {
   status: 'pending' | 'doing' | 'done';
   priority: 'normal' | 'high';
   version: number;
+  phase: 'before' | 'during' | 'after';
+  stakeholder_id: string | null;
 }
 export interface Decision {
   id: string;
@@ -35,6 +37,20 @@ export interface Decision {
   activity_id: string | null;
   activity_title: string | null;
   created_at: string;
+  source?: 'application' | 'demo';
+}
+export interface Sponsor {
+  id: string;
+  edition_id: string;
+  name: string;
+  contribution: string;
+  counterpart: string;
+  contact: string;
+  owner_id: string;
+  owner_name: string;
+  status: 'prospect' | 'contacted' | 'confirmed' | 'delivered';
+  notes: string;
+  version: number;
 }
 export interface Stakeholder {
   id: string;
@@ -42,6 +58,13 @@ export interface Stakeholder {
   category: string;
   responsibility: string;
   contact: string;
+  edition_id: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  phase: 'before' | 'during' | 'after';
+  operational_status: 'scheduled' | 'confirmed' | 'in_progress' | 'finished';
+  notes: string;
+  version: number;
 }
 export interface Audit {
   id: number;
@@ -52,4 +75,5 @@ export interface Audit {
   before_data: unknown;
   after_data: unknown;
   created_at: string;
+  source?: 'application' | 'demo';
 }
